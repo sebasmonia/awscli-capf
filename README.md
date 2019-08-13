@@ -66,7 +66,7 @@ _Don't forget `C-M-v` to "scroll the other window". Convenient!_
 
 Same applied for commands, after picking a service:
 
-![CommandCompletion](./screenshoots/CommandCompletion.png)
+![CommandCompletion](./screenshots/CommandCompletion.png)
 
 ![commandCompletionWithDocs](./screenshots/CommandCompletionWithDocs.png)
 
