@@ -15,6 +15,7 @@ are one `C-h` away!
    * [Installation and configuration](#installation-and-configuration)
    * [Refreshing completion data](#refreshing-completion-data)
    * [Adding completion to a mode](#adding-completion-to-a-mode)
+   * [Screenshots](#screenshots)
 
 <!--te-->
 
@@ -51,15 +52,15 @@ Or with `use-package` and using the convenience function in `awscli-capf`:
   :hook (shell-mode . awscli-add-to-capf))
 ```
 
-## Screenshoots
+## Screenshots
 
 After typing "aws", the first step is completion of service names:
 
-![ServiceCompletion](./screenshoots/ServiceCompletion.png)
+![ServiceCompletion](./screenshots/ServiceCompletion.png)
 
 You can press `C-h` over a candidate to see its docs:
 
-![ServiceCompletionWithDocs](./screenshoots/ServiceCompletionWithDocs.png)
+![ServiceCompletionWithDocs](./screenshots/ServiceCompletionWithDocs.png)
 
 _Don't forget `C-M-v` to "scroll the other window". Convenient!_
 
@@ -67,11 +68,11 @@ Same applied for commands, after picking a service:
 
 ![CommandCompletion](./screenshoots/CommandCompletion.png)
 
-![commandCompletionWithDocs](./screenshoots/CommandCompletionWithDocs.png)
+![commandCompletionWithDocs](./screenshots/CommandCompletionWithDocs.png)
 
 Finally, for parameters, the docs include the type. Also, parameters already used
 are removed from the suggestion list:
 
-![ParameterWithDocs](./screenshoots/ParameterWithDocs.png)
+![ParameterWithDocs](./screenshots/ParameterWithDocs.png)
 
-![ParamsNoRepeat](./screenshoots/ParamsNoRepeat.png)
+![ParamsNoRepeat](./screenshots/ParamsNoRepeat.png)
