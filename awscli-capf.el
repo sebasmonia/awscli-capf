@@ -1,10 +1,81 @@
-(require 'cl)
+;;; awscli-capf.el --- Completion at point function for the AWS CLI  -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2019 Sebastian Monia
+;;
+;; Author: Sebastian Monia <smonia@outlook.com>
+;; URL: https://github.com/sebasmonia/awscli-capf.git
+;; Package-Requires: ((emacs "26") (company "0.9.10"))
+;; Version: 1.0
+;; Keywords: tools convenience abbrev
+
+;; This file is not part of GNU Emacs.
+
+;;; License: MIT
+
+;;; Commentary:
+
+;; Add the function `awscli-capf' to the list of completion functions, for example:
+;;
+;; (require 'awscli-capf)
+;; (add-hook 'shell-mode-hook (lambda ()
+;;                             (add-to-list 'completion-at-point-functions 'awscli-capf)))
+;;
+;; or with use-package:
+;;
+;; (use-package awscli-capf
+;;   :commands (awscli-add-to-capf)
+;;   :hook (shell-mode . awscli-add-to-capf))
+;;
+;; For more details  see https://github.com/sebasmonia/awscli-capf/blob/master/README.md
+;;
+;;; Code:
+
+(require 'cl-lib)
+(require 'company)
 
 ;;(add-to-list 'completion-at-point-functions 'awscli-capf)
 (defconst accapf--script-dir (file-name-directory load-file-name)  "The directory from which the package loaded.")
-(defconst accapf--data-file (expand-file-name "awscli-capf-docs.el" accapf--script-dir) "Location of the file with the help data.")
+(defconst accapf--data-file (expand-file-name "awscli-capf-docs.data" accapf--script-dir) "Location of the file with the help data.")
 (defvar accapf--services-info nil "Names and docs of all services, commands and options of the AWS CLI.")
 (defvar accapf--global-options-info nil "Top level options of the AWS CLI.")
+
+(defun awscli-add-to-capf ()
+  "Convenience function to invoke in a mode's hook to get AWS CLI completion.
+It adds `awscli-capf' to `completion-at-point-functions'."
+  (add-to-list 'completion-at-point-functions
+               'awscli-capf))
+
+(defun awscli-capf ()
+  "Function for completion at point of AWS CLI services and commands.
+Run \"(add-to-list 'completion-at-point-functions 'awscli-capf)\" in a mode's hook to add this completion."
+  (unless accapf--services-info
+    (accapf--read-data-from-file))
+  (save-excursion
+    (let* ((line (split-string (thing-at-point 'line t)))
+           (bounds (bounds-of-thing-at-point 'sexp)) ;; 'word is delimited by "-" in shell modes, 'sexp is "space delimited" like we want
+           (is-aws-command (string= (cl-first line) "aws"))
+           (service (cl-second line))
+           (command (cl-third line))
+           (params (accapf--param-strings-only line)) ;; parameters start with --, we use this to filter parameters already consumed
+           (service-names-docs (accapf--service-completion-data)) ;; we always need the service names to confirm we have a good match
+           (command-names-docs (accapf--command-completion-data service)) ;; will return data for a "good" service name, or nil for a partial/invalid entry
+           (candidates nil)) ;; populated in the cond below
+      (when is-aws-command
+              ;; TODO
+        (cond ((and service (member command command-names-docs)) (setq candidates (accapf--parameters-completion-data service command params)))
+              ;; TODO
+              ((and service (member service service-names-docs)) (setq candidates command-names-docs))
+              ;; if it's aws command but there's no match for service name, complete service
+              (t (setq candidates service-names-docs)))
+        (when bounds
+          (list (car bounds)
+                (cdr bounds)
+                candidates
+                :exclusive 'no
+                :company-docsig #'identity
+                :company-doc-buffer (lambda (the-candidate)
+                                      ;; this property is added to the name string in the function that get the completion data for `candidates'
+                                      (company-doc-buffer (get-text-property 0 :awsdoc the-candidate)))))))))
 
 (cl-defstruct (accapf--service (:constructor accapf--service-create)
                                (:copier nil))
@@ -34,48 +105,23 @@
       (setq accapf--global-options-info (second all-data))
       (message "awscli-capf - loaded completion data"))))
 
-(defun awscli-capf ()
-  "Function for completion at point of AWS CLI services and commands.
-Run \"(add-to-list 'completion-at-point-functions 'awscli-capf)\" in a mode's hook to add this completion."
-  (unless accapf--services-info
-    (accapf--read-data-from-file))
-  (save-excursion
-    (let* ((line (split-string (thing-at-point 'line t)))
-           (bounds (bounds-of-thing-at-point 'sexp)) ;; 'word is delimited by "-" in shell modes, 'sexp is "space delimited" like we want
-           (is-aws-command (string= (first line) "aws"))
-           (service (second line))
-           (command (third line))
-           (params (accapf--param-strings-only line)) ;; parameters start with --, we use this to filter parameters already consumed
-           (service-names-docs (accapf--service-completion-data)) ;; we always need the service names to confirm we have a good match
-           (command-names-docs (accapf--command-completion-data service)) ;; will return data for a "good" service name, or nil for a partial/invalid entry
-           (candidates nil)) ;; populated in the cond below
-      (when is-aws-command
-              ;; TODO
-        (cond ((and service (member command command-names-docs)) (setq candidates (accapf--parameters-completion-data service command params)))
-              ;; TODO
-              ((and service (member service service-names-docs)) (setq candidates command-names-docs))
-              ;; if it's aws command but there's no match for service name, complete service
-              (t (setq candidates service-names-docs)))
-        (when bounds
-          (list (car bounds)
-                (cdr bounds)
-                candidates
-                :exclusive 'no
-                :company-docsig #'identity
-                :company-doc-buffer (lambda (the-candidate)
-                                      ;; this property is added to the name string in the function that get the completion data for `candidates'
-                                      (company-doc-buffer (get-text-property 0 :awsdoc the-candidate)))))))))
-
 (defun accapf--param-strings-only (strings)
+  "Filter the list of STRINGS and keep only the ones starting with \"--\"."
   (cl-remove-if-not (lambda (str) (string-prefix-p "--" str)) strings))
 
 (defun accapf--service-completion-data ()
+  "Generate the completion data for services.
+The format is a string of the service name, with a property :awsdoc that
+contains the help text."
   (mapcar (lambda (serv)
             (propertize (accapf--service-name serv)
                         :awsdoc (accapf--service-docs serv)))
           accapf--services-info))
 
 (defun accapf--command-completion-data (service-name)
+  "Generate the completion data for a SERVICE-NAME commands.
+The format is a string of the command name, with a property :awsdoc that
+contains the help text."
   (let ((service (cl-find service-name
                           accapf--services-info
                           :test (lambda (value item)
@@ -87,6 +133,10 @@ Run \"(add-to-list 'completion-at-point-functions 'awscli-capf)\" in a mode's ho
               (accapf--service-commands service)))))
 
 (defun accapf--parameters-completion-data (service-name command-name used-params)
+    "Generate the completion data for the parameters of COMMAND-NAME.
+The command is searched under SERVICE-NAME.  USED-PARAMS are excluded from the
+results.  The format is a string with the service name, with a property :awsdoc
+that contains the parameter's type and help text."
   (let* ((service (cl-find service-name
                            accapf--services-info
                            :test (lambda (value item)
@@ -108,7 +158,8 @@ Run \"(add-to-list 'completion-at-point-functions 'awscli-capf)\" in a mode's ho
                                          accapf--global-options-info))))))
 
 (defun accapf-refresh-data-from-cli ()
-  "Run \"aws help\" in the shell and keep walking down all the services and commands to updated the cached docs."
+  "Run \"aws help\" in a shell and and parse output to update cached docs.
+More functions are invoked from this one to update commands and parameters."
   (interactive)
   (with-temp-buffer
     (call-process "aws" nil t nil "help")
@@ -140,6 +191,9 @@ Run \"(add-to-list 'completion-at-point-functions 'awscli-capf)\" in a mode's ho
       (accapf--store-data-in-file (list services global-options)))))
 
 (defun accapf--service-data-from-cli (service)
+  "Run \"aws [SERVICE] help\" in a shell and parse output to update cached docs.
+For each command in the service, more functions are called to parse command and
+parameter output."
   (with-temp-buffer
     (message "Service: %s" service)
     (call-process "aws" nil t nil service "help")
@@ -163,6 +217,8 @@ Run \"(add-to-list 'completion-at-point-functions 'awscli-capf)\" in a mode's ho
                                :docs (buffer-string)))))
 
 (defun accapf--command-data-from-cli (service command-name)
+  "Run \"aws [SERVICE] [COMMAND-NAME] help\" to update the cached docs.
+This is the last level of output parsing."
   (with-temp-buffer
     (message "Service: %s Command: %s" service command-name)
     (call-process "aws" nil t nil service command-name "help")
@@ -186,11 +242,5 @@ Run \"(add-to-list 'completion-at-point-functions 'awscli-capf)\" in a mode's ho
                                :options options
                                :docs (buffer-string)))))
 
-;; (defun accapf--log (&rest to-log)
-;;   "Append TO-LOG to the log buffer.  Intended for internal use only."
-;;   (let ((log-buffer (get-buffer-create "*accapf-log*"))
-;;         (text (cl-reduce (lambda (accum elem) (concat accum " " (prin1-to-string elem t))) to-log)))
-;;     (with-current-buffer log-buffer
-;;       (goto-char (point-max))
-;;       (insert text)
-;;       (insert "\n"))))
+(provide 'awscli-capf)
+;;; awscli-capf.el ends here
