@@ -115,8 +115,8 @@ Return empty string if not present."
   (with-temp-buffer
     (insert-file-contents awscli--capf-data-file)
     (let ((all-data (read (buffer-string))))
-      (setq awscli--capf-services-info (first all-data))
-      (setq awscli--capf-global-options-info (second all-data))
+      (setq awscli--capf-services-info (cl-first all-data))
+      (setq awscli--capf-global-options-info (cl-second all-data))
       (message "awscli-capf - loaded completion data"))))
 
 (defun awscli--capf-param-strings-only (strings)
