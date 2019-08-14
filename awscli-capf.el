@@ -173,7 +173,7 @@ that contains the parameter's type and help text."
                                          (awscli--capf-command-options command)
                                          awscli--capf-global-options-info))))))
 
-(defun accapf-refresh-data-from-cli ()
+(defun awscli-capf-refresh-data-from-cli ()
   "Run \"aws help\" in a shell and and parse output to update cached docs.
 More functions are invoked from this one to update commands and parameters."
   (interactive)

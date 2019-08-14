@@ -26,7 +26,7 @@ Place awscli-capf.el and optionally awscli-capf-docs.data in your load-path. (ME
 ## Refreshing completion data
 
 If you don't want to use the pre-generated completion data in awscli-capf-docs.data, then after loading `awscli-capf` 
-you can invoke the command `accapf-refresh-data-from-cli`.
+you can invoke the command `awscli-capf-refresh-data-from-cli`.
 This command will run `aws help` and use regular expressions to go over the output and get the list of services.
 Then for each service it will execute `aws [service] help` and so on for each combination of service and command.
 
