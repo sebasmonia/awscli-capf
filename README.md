@@ -39,8 +39,12 @@ Add the function `awscli-capf` to the list of completion functions, for example:
 
 ```elisp
 (require 'awscli-capf)
+
 (add-hook 'shell-mode-hook (lambda ()
                              (add-to-list 'completion-at-point-functions 'awscli-capf)))
+;; --or
+
+(add-hook 'shell-mode-hook 'awscli-add-to-capf)
 ```
 
 Or with `use-package` and using the convenience function in `awscli-capf`:
