@@ -53,19 +53,19 @@ Run \"(add-to-list 'completion-at-point-functions 'awscli-capf)\" in a mode's ho
   (save-excursion
     (let* ((line (split-string (thing-at-point 'line t)))
            (bounds (bounds-of-thing-at-point 'sexp)) ;; 'word is delimited by "-" in shell modes, 'sexp is "space delimited" like we want
-           (is-aws-command (string= (cl-first line) "aws"))
-           (service (cl-second line))
-           (command (cl-third line))
-           (params (awscli--capf-param-strings-only line)) ;; parameters start with --, we use this to filter parameters already consumed
+           (aws-command-start (position "aws" line :test #'string=))
+           (service (when aws-command-start (elt line (+ 1 aws-command-start))))
+           (command (when aws-command-start (elt line (+ 2 aws-command-start))))
+           ;; parameters start with --, we use this to filter parameters already consumed
+           (params (when aws-command-start (awscli--capf-param-strings-only (subseq line aws-command-start))))
            (service-names-docs (awscli--capf-service-completion-data)) ;; we always need the service names to confirm we have a good match
            (command-names-docs (awscli--capf-command-completion-data service)) ;; will return data for a "good" service name, or nil for a partial/invalid entry
            (candidates nil)) ;; populated in the cond below
-      (when is-aws-command
-              ;; TODO
+      (message (thing-at-point 'word t))
+      (when aws-command-start
         (cond ((and service (member command command-names-docs)) (setq candidates (awscli--capf-parameters-completion-data service command params)))
-              ;; TODO
               ((and service (member service service-names-docs)) (setq candidates command-names-docs))
-              ;; if it's aws command but there's no match for service name, complete service
+              ;; if it's an aws command but there's no match for service name, complete service
               (t (setq candidates service-names-docs)))
         (when bounds
           (list (car bounds)
@@ -129,7 +129,8 @@ The format is a string of the service name, with two extra properties, :awsdoc
 and :awsannotation that contain help text for the help buffer and minibuffer, respectively."
   (mapcar (lambda (serv)
             (propertize (awscli--capf-service-name serv)
-                        :awsdoc (awscli--capf-service-docs serv)))
+                        :awsdoc (awscli--capf-service-docs serv)
+                        :awsannotation " (aws service)"))
           awscli--capf-services-info))
 
 (defun awscli--capf-command-completion-data (service-name)
@@ -143,7 +144,8 @@ contains the help text."
     (when service
       (mapcar (lambda (comm)
                 (propertize (awscli--capf-command-name comm)
-                            :awsdoc (awscli--capf-command-docs comm)))
+                            :awsdoc (awscli--capf-command-docs comm)
+                            :awsannotation " (aws command)"))
               (awscli--capf-service-commands service)))))
 
 (defun awscli--capf-parameters-completion-data (service-name command-name used-params)
@@ -167,7 +169,7 @@ that contains the parameter's type and help text."
                                           :awsdoc (format "Type: %s\n\n%s"
                                                           (awscli--capf-option-type opt)
                                                           (awscli--capf-option-docs opt))
-                                          :awsannotation (format " (%s)"
+                                          :awsannotation (format " (aws param - %s)"
                                                                  (awscli--capf-option-type opt))))
                             (concatenate 'list
                                          (awscli--capf-command-options command)
