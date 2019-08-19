@@ -31,7 +31,7 @@ This command will run `aws help` and use regular expressions to go over the outp
 Then for each service it will execute `aws [service] help` and so on for each combination of service and command.
 
 This can take quite a while! And it's the less robust part of the process, to be honest. If in the future the documentation
-format changes, the functions parsing the output will need to be adjusted. (see [https://github.com/sebasmonia/awscli-capf/issues/6](issue #6) for 
+format changes, the functions parsing the output will need to be adjusted. (see [issue #6](https://github.com/sebasmonia/awscli-capf/issues/6) for 
 a not-yet-implemented alternative)
 
 ## Adding completion to a mode
