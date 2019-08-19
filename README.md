@@ -44,7 +44,7 @@ Add the function `awscli-capf` to the list of completion functions, for example:
                              (add-to-list 'completion-at-point-functions 'awscli-capf)))
 ;; --or
 
-(add-hook 'shell-mode-hook 'awscli-add-to-capf)
+(add-hook 'shell-mode-hook 'awscli-capf-add)
 ```
 
 Or with `use-package` and using the convenience function in `awscli-capf`:
@@ -53,7 +53,7 @@ Or with `use-package` and using the convenience function in `awscli-capf`:
 ;; You should skip load-path when installed from MELPA
 (use-package awscli-capf :load-path "/path/to/package"
   :commands (awscli-add-to-capf)
-  :hook (shell-mode . awscli-add-to-capf))
+  :hook (shell-mode . awscli-capf-add))
 ```
 
 ## Screenshots
