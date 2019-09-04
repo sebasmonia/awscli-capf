@@ -31,7 +31,6 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'company)
 
 (defconst awscli-capf--script-dir (if load-file-name (file-name-directory load-file-name) default-directory) "The directory from which the package loaded, or default-directory if the buffer is evaluated.")
 (defconst awscli-capf--data-file (expand-file-name "awscli-capf-docs.data" awscli-capf--script-dir) "Location of the file with the help data.")
