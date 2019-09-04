@@ -33,8 +33,7 @@
 (require 'cl-lib)
 (require 'company)
 
-;;(add-to-list 'completion-at-point-functions 'awscli-capf)
-(defconst awscli-capf--script-dir (file-name-directory load-file-name)  "The directory from which the package loaded.")
+(defconst awscli-capf--script-dir (if load-file-name (file-name-directory load-file-name) default-directory) "The directory from which the package loaded, or default-directory if the buffer is evaluated.")
 (defconst awscli-capf--data-file (expand-file-name "awscli-capf-docs.data" awscli-capf--script-dir) "Location of the file with the help data.")
 (defvar awscli-capf--services-info nil "Names and docs of all services, commands and options of the AWS CLI.")
 (defvar awscli-capf--global-options-info nil "Top level options of the AWS CLI.")
@@ -91,14 +90,14 @@ Run \"(add-to-list 'completion-at-point-functions 'awscli-capf)\" in a mode's ho
 (defun awscli-capf--help-buffer (candidate)
   "Extract from CANDIDATE the :awsdoc text property."
   ;; this property is added to the name string in the function that gets
-  ;; the completion data for `candidates'
+  ;; the completion data for "candidates" list @ func awscli-capf
   (company-doc-buffer (get-text-property 0 :awsdoc candidate)))
 
 (defun awscli-capf--annotation (candidate)
   "Extract from CANDIDATE the :awsannotation text property.
 Return empty string if not present."
   ;; this property is added to the name string in the function that gets
-  ;; the completion data for `candidates'. So far only present for
+  ;; the completion data for "candidates" list @ func awscli-capf. So far only present for
   ;; parameters
   (let ((aws-annotation (get-text-property 0 :awsannotation candidate)))
     (or aws-annotation "")))
@@ -171,7 +170,7 @@ that contains the parameter's type and help text."
                                                           (awscli-capf--option-docs opt))
                                           :awsannotation (format " (aws param - %s)"
                                                                  (awscli-capf--option-type opt))))
-                            (concatenate 'list
+                            (cl-concatenate 'list
                                          (awscli-capf--command-options command)
                                          awscli-capf--global-options-info))))))
 
@@ -188,7 +187,7 @@ More functions are invoked from this one to update commands and parameters."
            (serv-end (search-forward-regexp "^See Also$"))
            (global-options nil)
            (services nil))
-      ;; from the "Options" title, search for all the ocurrences
+      ;; from the "Options" title, search for all the occurrences
       ;; of "--something-something", bound to the start of services names
       ;; and retrieve from the line the text between quotes
       (goto-char opt-start)
@@ -197,7 +196,7 @@ More functions are invoked from this one to update commands and parameters."
                                       :type (match-string 2)
                                       :docs (match-string 3))
               global-options))
-      ;; from the "Available Services" title, search for all the ocurrences
+      ;; from the "Available Services" title, search for all the occurrences
       ;; of "* something", bound to the start the "See Also" title
       ;; and retrieve from the line the text after "* "
       (goto-char serv-start)
@@ -219,7 +218,7 @@ parameter output."
     (let* ((case-fold-search nil)
            (command-start (search-forward-regexp "^Available Commands$" nil t))
            (commands nil))
-      ;; from the "Available Commands" title, search for all the ocurrences
+      ;; from the "Available Commands" title, search for all the occurrences
       ;; of "* something" until the end of the buffer, and retrieve
       ;; from the line the text after "* "
       (when command-start
@@ -244,7 +243,7 @@ This is the last level of output parsing."
     (let* ((case-fold-search nil)
            (opt-start (search-forward-regexp "^Options$" nil t))
            (options nil))
-      ;; from the "Options" title, search for all the ocurrences
+      ;; from the "Options" title, search for all the occurrences
       ;; of "--something-something", bound to the start of services names
       ;; and retrieve from the line the text between quotes
       ;; some commands don't have "Options", for now we ignore them but
