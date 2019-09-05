@@ -32,7 +32,25 @@
 
 (require 'cl-lib)
 
-(defconst awscli-capf--script-dir (if load-file-name (file-name-directory load-file-name) default-directory) "The directory from which the package loaded, or default-directory if the buffer is evaluated.")
+(defgroup awscli-capf nil
+  "Completion at point function for the AWS CLI."
+  :group 'extensions)
+
+(defcustom awscli-capf-completion-prefix "aws"
+  "Word used to trigger completion via this package.
+The function `awscli-capf' will search for this string as the first
+\"expression\" in the line to determine if it has to provide completion
+candidates."
+  :type 'string)
+
+(defcustom awscli-capf-cli-executable "aws"
+  "Name of the executable used to get the AWS CLI help via shell calls.
+Used when calling `awscli-capf-refresh-data-from-cli'.  Customize this if you
+use an alternative tool, and its help format is compatible with the standard
+one.  Or for example, if you need to include the full path to the executable."
+  :type 'string)
+
+(defconst awscli-capf--script-dir (if load-file-name (file-name-directory load-file-name) default-directory) "The directory from which the package loaded, or `default-directory' if the buffer is evaluated.")
 (defconst awscli-capf--data-file (expand-file-name "awscli-capf-docs.data" awscli-capf--script-dir) "Location of the file with the help data.")
 (defvar awscli-capf--services-info nil "Names and docs of all services, commands and options of the AWS CLI.")
 (defvar awscli-capf--global-options-info nil "Top level options of the AWS CLI.")
@@ -51,7 +69,7 @@ Run \"(add-to-list 'completion-at-point-functions 'awscli-capf)\" in a mode's ho
   (save-excursion
     (let* ((line (split-string (thing-at-point 'line t)))
            (bounds (bounds-of-thing-at-point 'sexp)) ;; 'word is delimited by "-" in shell modes, 'sexp is "space delimited" like we want
-           (aws-command-start (cl-position "aws" line :test #'string=))
+           (aws-command-start (cl-position awscli-capf-completion-prefix line :test #'string=))
            (service (when aws-command-start (elt line (+ 1 aws-command-start))))
            (command (when aws-command-start (elt line (+ 2 aws-command-start))))
            ;; parameters start with --, we use this to filter parameters already consumed
@@ -175,10 +193,11 @@ that contains the parameter's type and help text."
 
 (defun awscli-capf-refresh-data-from-cli ()
   "Run \"aws help\" in a shell and and parse output to update cached docs.
-More functions are invoked from this one to update commands and parameters."
+More functions are invoked from this one to update commands and parameters.
+You can customize the executable used via `awscli-capf-cli-executable'."
   (interactive)
   (with-temp-buffer
-    (call-process "aws" nil t nil "help")
+    (call-process awscli-capf-cli-executable nil t nil "help")
     (goto-char (point-min))
     (let* ((case-fold-search nil)
            (opt-start (search-forward-regexp "^Options$"))
@@ -212,7 +231,7 @@ For each command in the service, more functions are called to parse command and
 parameter output."
   (with-temp-buffer
     (message "Service: %s" service)
-    (call-process "aws" nil t nil service "help")
+    (call-process awscli-capf-cli-executable nil t nil service "help")
     (goto-char (point-min))
     (let* ((case-fold-search nil)
            (command-start (search-forward-regexp "^Available Commands$" nil t))
@@ -237,7 +256,7 @@ parameter output."
 This is the last level of output parsing."
   (with-temp-buffer
     (message "Service: %s Command: %s" service command-name)
-    (call-process "aws" nil t nil service command-name "help")
+    (call-process awscli-capf-cli-executable nil t nil service command-name "help")
     (goto-char (point-min))
     (let* ((case-fold-search nil)
            (opt-start (search-forward-regexp "^Options$" nil t))
