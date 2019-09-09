@@ -4,7 +4,7 @@
 ;;
 ;; Author: Sebastian Monia <smonia@outlook.com>
 ;; URL: https://github.com/sebasmonia/awscli-capf.git
-;; Package-Requires: ((emacs "26") (company "0.9.10"))
+;; Package-Requires: ((emacs "26"))
 ;; Version: 1.0
 ;; Keywords: tools convenience abbrev
 
@@ -108,7 +108,8 @@ Run \"(add-to-list 'completion-at-point-functions 'awscli-capf)\" in a mode's ho
   "Extract from CANDIDATE the :awsdoc text property."
   ;; this property is added to the name string in the function that gets
   ;; the completion data for "candidates" list @ func awscli-capf
-  (company-doc-buffer (get-text-property 0 :awsdoc candidate)))
+  (when (fboundp 'company-doc-buffer)
+    (company-doc-buffer (get-text-property 0 :awsdoc candidate))))
 
 (defun awscli-capf--annotation (candidate)
   "Extract from CANDIDATE the :awsannotation text property.
