@@ -129,6 +129,12 @@ Return empty string if not present."
 
 (defun awscli-capf--read-data-from-file ()
   "Load the completion data stored in `awscli-capf--data-file'."
+  (unless (file-exists-p awscli-capf--data-file)
+    (when (y-or-n-p "Completion data not present (approx 29 MB), download it? ")
+      (url-copy-file "https://github.com/sebasmonia/awscli-capf/raw/master/awscli-capf-docs.data"
+                     awscli-capf--data-file
+                     nil
+                     t)))
   (with-temp-buffer
     (insert-file-contents awscli-capf--data-file)
     (let ((all-data (read (buffer-string))))
@@ -198,19 +204,29 @@ More functions are invoked from this one to update commands and parameters.
 You can customize the executable used via `awscli-capf-cli-executable'."
   (interactive)
   (with-temp-buffer
-    (call-process awscli-capf-cli-executable nil t nil "help")
+    ;; replace "" in the output, which happens running the tool under linux/osx in certain conditions
+    ;; when this occurs, it's the control char + a repeat of the previous character
+    (insert (replace-regexp-in-string ".\\{1\\}" "" (shell-command-to-string (concat awscli-capf-cli-executable " help"))))
     (goto-char (point-min))
+    ;; We could search  without case-fold-search but in that case we risk any instance of "options" in any
+    ;; phrase to match. Instead let's be specific about Windows headers ("Options") and *nix headers "OPTIONS"
     (let* ((case-fold-search nil)
-           (opt-start (search-forward-regexp "^Options$"))
-           (serv-start (search-forward-regexp "^Available Services$"))
-           (serv-end (search-forward-regexp "^See Also$"))
+           (opt-start (or (search-forward-regexp "^Options$" nil t) (search-forward-regexp "^OPTIONS$" nil t)))
+           (serv-start (or (search-forward-regexp "^Available Services$" nil t) (search-forward-regexp "^AVAILABLE SERVICES$" nil t)))
+           (serv-end (or (search-forward-regexp "^See Also$" nil t) (search-forward-regexp "^SEE ALSO$" nil t)))
            (global-options nil)
-           (services nil))
+           (services nil)
+           (linux-re-from-emacs-wiki (concat "\\(--.*?\\) \(\\(.*?\\)\)\n\n"
+                                             "\\(.*\\(?:\n.*\\)*?\\)"   ;; definition: to end of line,
+                                             ;; then maybe more lines
+                                             ;; (excludes any trailing \n)
+                                             "\\(?:\n\\s-*\n\\|\\'\\)")))
       ;; from the "Options" title, search for all the occurrences
       ;; of "--something-something", bound to the start of services names
       ;; and retrieve from the line the text between quotes
       (goto-char opt-start)
-      (while (search-forward-regexp "^\"\\(.*?\\)\" (\\(.*?\\))\n\n\\(.*\\)" serv-start t)
+      (while (or (search-forward-regexp "^\"\\(.*?\\)\" (\\(.*?\\))\n\n\\(.*\\)" serv-start t)
+                 (search-forward-regexp linux-re-from-emacs-wiki serv-start t))
         (push (awscli-capf--option-create :name (match-string 1)
                                       :type (match-string 2)
                                       :docs (match-string 3))
@@ -219,7 +235,8 @@ You can customize the executable used via `awscli-capf-cli-executable'."
       ;; of "* something", bound to the start the "See Also" title
       ;; and retrieve from the line the text after "* "
       (goto-char serv-start)
-      (while (search-forward-regexp "^* \\(.*\\)$" serv-end t)
+      (while (or (search-forward-regexp "^* \\(.*\\)$" serv-end t)
+                 (search-forward-regexp "+ \\(.*\\)$" serv-end t))
         (let ((service-name (match-string 1)))
           (unless (string= service-name "help")
             (push (awscli-capf--service-data-from-cli service-name)
@@ -232,17 +249,27 @@ For each command in the service, more functions are called to parse command and
 parameter output."
   (with-temp-buffer
     (message "Service: %s" service)
-    (call-process awscli-capf-cli-executable nil t nil service "help")
+    ;; replace "" in the output, which happens running the tool under linux/osx in certain conditions
+    ;; when this occurs, it's the control char + a repeat of the previous character
+    (insert (replace-regexp-in-string
+             ".\\{1\\}" ""
+             (shell-command-to-string
+              (format "%s %s %s" awscli-capf-cli-executable service "help"))))
     (goto-char (point-min))
-    (let* ((case-fold-search nil)
-           (command-start (search-forward-regexp "^Available Commands$" nil t))
+    (let* ((case-fold-search t)
+           (command-start (or (search-forward-regexp "^Available Commands$" nil t)
+                              (search-forward-regexp "^AVAILABLE COMMANDS$" nil t)))
            (commands nil))
       ;; from the "Available Commands" title, search for all the occurrences
       ;; of "* something" until the end of the buffer, and retrieve
       ;; from the line the text after "* "
+      ;; In non-Windows OS, the starting char is + instead of *, with an extra tab
+      ;; so match from that character
+      (message "command-start: ---------%s----------" command-start)
       (when command-start
         (goto-char command-start)
-        (while (search-forward-regexp "^* \\(.*\\)$" nil t)
+        (while (or (search-forward-regexp "^* \\(.*\\)$" nil t)
+                   (search-forward-regexp "+ \\(.*\\)$" nil t))
           (let ((command-name (match-string 1)))
             (unless (string= command-name "help") ;; yeah, skip "help"
               (push (awscli-capf--command-data-from-cli service command-name)
@@ -257,19 +284,33 @@ parameter output."
 This is the last level of output parsing."
   (with-temp-buffer
     (message "Service: %s Command: %s" service command-name)
-    (call-process awscli-capf-cli-executable nil t nil service command-name "help")
+    ;; replace "" in the output, which happens running the tool under linux/osx in certain conditions
+    ;; when this occurs, it's the control char + a repeat of the previous character
+    (insert (replace-regexp-in-string
+             ".\\{1\\}" ""
+             (shell-command-to-string
+              (format "%s %s %s help" awscli-capf-cli-executable service command-name))))
     (goto-char (point-min))
-    (let* ((case-fold-search nil)
-           (opt-start (search-forward-regexp "^Options$" nil t))
-           (options nil))
+    (let* ((case-fold-search t)
+           (opt-start (or (search-forward-regexp "^Options$" nil t)
+                          (search-forward-regexp "^OPTIONS$" nil t)))
+           (options nil)
+           (linux-re-from-emacs-wiki (concat "\\(--.*?\\) \(\\(.*?\\)\)\n\n"
+                                             "\\(.*\\(?:\n.*\\)*?\\)"   ;; definition: to end of line,
+                                             ;; then maybe more lines
+                                             ;; (excludes any trailing \n)
+                                             "\\(?:\n\\s-*\n\\|\\'\\)")))
       ;; from the "Options" title, search for all the occurrences
-      ;; of "--something-something", bound to the start of services names
+      ;; of "--something-something" until the end of the buffer,
       ;; and retrieve from the line the text between quotes
       ;; some commands don't have "Options", for now we ignore them but
-      ;; there's a chance that handling will be added to them
+      ;; there's a chance that handling will be added later
+      ;; The format for options is different in non-Windows OS and we
+      ;; account for that in the "(or ...)"
       (when opt-start
         (goto-char opt-start)
-        (while (search-forward-regexp "^\"\\(.*?\\)\" (\\(.*?\\))\n\n\\(.*\\)" nil t)
+        (while (or (search-forward-regexp "^\"\\(.*?\\)\" (\\(.*?\\))\n\n\\(.*\\)" nil t)
+                   (search-forward-regexp linux-re-from-emacs-wiki nil t))
           (push (awscli-capf--option-create :name (match-string 1)
                                         :type (match-string 2)
                                         :docs (match-string 3))
