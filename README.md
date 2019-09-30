@@ -1,3 +1,5 @@
+[![MELPA](https://melpa.org/packages/awscli-capf-badge.svg)](https://melpa.org/#/awscli-capf)
+
 # AWS CLI - Completion at point
 
 The AWS command line tool has a support for all of Amazon services, with tens of commands for each one.
