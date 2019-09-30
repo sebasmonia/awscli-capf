@@ -129,6 +129,12 @@ Return empty string if not present."
 
 (defun awscli-capf--read-data-from-file ()
   "Load the completion data stored in `awscli-capf--data-file'."
+  (unless (file-exists-p awscli-capf--data-file)
+    (when (y-or-n-p "Completion data not present (approx 29 MB), download it? ")
+      (url-copy-file "https://github.com/sebasmonia/awscli-capf/raw/master/awscli-capf-docs.data"
+                     awscli-capf--data-file
+                     nil
+                     t)))
   (with-temp-buffer
     (insert-file-contents awscli-capf--data-file)
     (let ((all-data (read (buffer-string))))
