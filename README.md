@@ -10,6 +10,8 @@ But what if, instead, we could have support for completion, with quick access to
 `aws` in your shell buffer, completion at point would suggest valid commands. And by leveraging some company-mode extensions, the docs
 are one `C-h` away!
 
+**You can buy me a [cup of ko-fi](https://ko-fi.com/A0A527CN7)! There's also a [PayPal option](https://www.paypal.me/sebasmonia).**
+
 ## Table of contents
 
 <!--ts-->
